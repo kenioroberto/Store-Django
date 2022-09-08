@@ -1,8 +1,11 @@
+from audioop import avg
 from itertools import product
 from tkinter import CASCADE
 from django.urls import reverse
 from django.db import models
 from category.models import Category
+from accounts.models import Account
+from django.db.models import Avg, Count
 
 class Product(models.Model):
     product_name = models.CharField(max_length=200, unique=True, verbose_name='Nome Produto')
@@ -25,6 +28,20 @@ class Product(models.Model):
     class Meta:
         verbose_name = 'Produto'
         verbose_name_plural = 'Produtos'
+
+    def averageReview(self):
+        reviews = ReviewRating.objects.filter(product=self, status=True).aggregate(average=Avg('rating'))
+        avg = 0
+        if reviews['average'] is not None:
+            avg = float(reviews['average'])
+        return avg
+    # Contar a quantidade de comentarios
+    def countReview(self):
+        reviews = ReviewRating.objects.filter(product=self, status=True).aggregate(count=Count('id'))
+        count = 0
+        if reviews['count'] is not None:
+            count = int(reviews['count'])
+        return count
 
 class VariationManager(models.Manager):
     def colors(self):
@@ -51,3 +68,21 @@ class Variation(models.Model):
 
     def __str__(self):
         return self.variation_value
+
+class ReviewRating(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    user = models.ForeignKey(Account, on_delete=models.CASCADE)
+    subject = models.CharField(max_length=100, blank=True)
+    review = models.TextField(max_length=500, blank=True, verbose_name='Comentário')
+    rating = models.FloatField()
+    ip = models.CharField(max_length=20, blank=True)
+    status = models.BooleanField(default=True)
+    create_at = models.DateTimeField(auto_now_add=True)
+    update_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.subject
+
+    class Meta:
+        verbose_name = 'Comentário'
+        verbose_name_plural = 'Comentarios'
